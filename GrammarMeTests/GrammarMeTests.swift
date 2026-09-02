@@ -1,7 +1,33 @@
+import AppKit
 import XCTest
 @testable import GrammarMe
 
 final class GrammarMeServiceJourneyTests: XCTestCase {
+    @MainActor
+    func testGivenSelectedTextWhenServiceRunsThenItShowsProgressAndReplacesTheSelection() throws {
+        UserDefaults.standard.removeObject(forKey: "lastServiceStatus")
+        let pasteboard = NSPasteboard.withUniqueName()
+        pasteboard.declareTypes([.string], owner: nil)
+        pasteboard.setString("This are a draft.", forType: .string)
+        let observedStatus = ThreadSafeValue<String?>()
+        let useCase = FormatSelectedText(
+            formatter: StatusObservingFormatter {
+                observedStatus.set(UserDefaults.standard.string(forKey: "lastServiceStatus"))
+                return "This is a draft."
+            },
+            apiKey: { "test-key" }
+        )
+        let subject = GrammarMeServiceProvider(useCase: useCase)
+        var serviceError: NSString?
+
+        subject.formatText(pasteboard, userData: nil, error: &serviceError)
+
+        XCTAssertNil(serviceError)
+        XCTAssertEqual(observedStatus.value, "Formatting selected text…")
+        XCTAssertEqual(pasteboard.string(forType: .string), "This is a draft.")
+        XCTAssertEqual(UserDefaults.standard.string(forKey: "lastServiceStatus"), "Formatting complete.")
+    }
+
     func testGivenGrammarMeIsInstalledThenFormatServiceIsAdvertised() throws {
         let services = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "NSServices") as? [[String: Any]])
         let menuItem = services.first?["NSMenuItem"] as? [String: String]
@@ -49,6 +75,18 @@ final class GrammarMeServiceJourneyTests: XCTestCase {
 private struct StubFormatter: TextFormatting {
     let result: Result<String, Error>
     func format(_ text: String, apiKey: String) async throws -> String { try result.get() }
+}
+
+private struct StatusObservingFormatter: TextFormatting {
+    let operation: @Sendable () -> String
+    func format(_ text: String, apiKey: String) async throws -> String { operation() }
+}
+
+private nonisolated final class ThreadSafeValue<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedValue: Value?
+    var value: Value? { lock.withLock { storedValue } }
+    func set(_ value: Value) { lock.withLock { storedValue = value } }
 }
 
 private func XCTAssertThrowsErrorAsync<T>(

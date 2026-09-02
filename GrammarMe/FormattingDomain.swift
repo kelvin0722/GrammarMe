@@ -1,10 +1,10 @@
 import Foundation
 
-protocol TextFormatting: Sendable {
-    func format(_ text: String, apiKey: String) async throws -> String
+nonisolated protocol TextFormatting: Sendable {
+    nonisolated func format(_ text: String, apiKey: String) async throws -> String
 }
 
-enum FormattingJourneyError: LocalizedError, Equatable {
+nonisolated enum FormattingJourneyError: LocalizedError, Equatable {
     case noSelectedText
     case missingAPIKey
     case emptyResponse
@@ -18,11 +18,11 @@ enum FormattingJourneyError: LocalizedError, Equatable {
     }
 }
 
-struct FormatSelectedText: Sendable {
+nonisolated struct FormatSelectedText: Sendable {
     let formatter: any TextFormatting
     let apiKey: @Sendable () -> String
 
-    func run(_ selectedText: String) async throws -> String {
+    nonisolated func run(_ selectedText: String) async throws -> String {
         guard !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw FormattingJourneyError.noSelectedText
         }

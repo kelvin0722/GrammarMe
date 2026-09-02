@@ -1,6 +1,6 @@
 import Foundation
 
-enum OpenAIFormattingError: LocalizedError {
+nonisolated enum OpenAIFormattingError: LocalizedError {
     case invalidKey
     case invalidResponse
     case api(String)
@@ -14,8 +14,8 @@ enum OpenAIFormattingError: LocalizedError {
     }
 }
 
-struct OpenAITextFormatter: TextFormatting {
-    func format(_ text: String, apiKey: String) async throws -> String {
+nonisolated struct OpenAITextFormatter: TextFormatting {
+    nonisolated func format(_ text: String, apiKey: String) async throws -> String {
         var request = URLRequest(url: URL(string: "https://api.openai.com/v1/responses")!)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
@@ -50,13 +50,13 @@ struct OpenAITextFormatter: TextFormatting {
     }
 }
 
-private struct FormattedPayload: Decodable { let formattedText: String }
-private struct ResponseEnvelope: Decodable {
+private nonisolated struct FormattedPayload: Decodable { let formattedText: String }
+private nonisolated struct ResponseEnvelope: Decodable {
     struct Output: Decodable { let content: [Content] }
     struct Content: Decodable { let type: String; let text: String? }
     let output: [Output]
 }
-private struct APIErrorEnvelope: Decodable {
+private nonisolated struct APIErrorEnvelope: Decodable {
     struct APIError: Decodable { let message: String }
     let error: APIError
 }
