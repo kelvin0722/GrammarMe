@@ -15,12 +15,18 @@ nonisolated enum OpenAIFormattingError: LocalizedError {
 }
 
 nonisolated struct OpenAITextFormatter: TextFormatting {
+    private let session: URLSession
+
+    init(session: URLSession = .shared) {
+        self.session = session
+    }
+
     nonisolated func format(_ text: String, apiKey: String) async throws -> String {
         var request = URLRequest(url: URL(string: "https://api.openai.com/v1/responses")!)
         request.httpMethod = "POST"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 50
+        request.timeoutInterval = 30
         let schema: [String: Any] = [
             "type": "object",
             "properties": ["formattedText": ["type": "string"]],
@@ -28,15 +34,19 @@ nonisolated struct OpenAITextFormatter: TextFormatting {
             "additionalProperties": false
         ]
         let body: [String: Any] = [
-            "model": "gpt-5-mini",
+            "model": "gpt-5.6-luna",
             "store": false,
-            "instructions": "Correct grammar, spelling, punctuation, and clarity. Preserve meaning, tone, paragraph breaks, and the writer's voice. Return only the revised text in the schema. Never add em dashes unless the source already uses them. Do not add commentary, headings, quotation marks, or markdown.",
+            "reasoning": ["effort": "none"],
+            "instructions": "Correct grammar, spelling, punctuation, and clarity while preserving meaning, voice, and paragraph breaks. Do not introduce dashes. Return only the revised text.",
             "input": text,
-            "text": ["format": ["type": "json_schema", "name": "formatted_text", "strict": true, "schema": schema]]
+            "text": [
+                "verbosity": "low",
+                "format": ["type": "json_schema", "name": "formatted_text", "strict": true, "schema": schema]
+            ]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw OpenAIFormattingError.invalidResponse }
         if http.statusCode == 401 { throw OpenAIFormattingError.invalidKey }
         guard (200...299).contains(http.statusCode) else {

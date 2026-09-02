@@ -3,6 +3,34 @@ import XCTest
 @testable import GrammarMe
 
 final class GrammarMeServiceJourneyTests: XCTestCase {
+    func testGivenTextToFormatWhenOpenAIRequestIsSentThenItUsesLatencyOptimizedSettings() async throws {
+        let capturedBody = ThreadSafeValue<[String: Any]>()
+        URLProtocolStub.handler = { request in
+            let data = try request.bodyData()
+            capturedBody.set(try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any]))
+            let response = try XCTUnwrap(HTTPURLResponse(
+                url: try XCTUnwrap(request.url),
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            ))
+            let payload = #"{"output":[{"content":[{"type":"output_text","text":"{\"formattedText\":\"This is correct.\"}"}]}]}"#
+            return (response, Data(payload.utf8))
+        }
+        defer { URLProtocolStub.handler = nil }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [URLProtocolStub.self]
+        let formatter = OpenAITextFormatter(session: URLSession(configuration: configuration))
+
+        let result = try await formatter.format("This are correct.", apiKey: "test-key")
+
+        let body = try XCTUnwrap(capturedBody.value)
+        XCTAssertEqual(result, "This is correct.")
+        XCTAssertEqual(body["model"] as? String, "gpt-5.6-luna")
+        XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
+        XCTAssertEqual((body["text"] as? [String: Any])?["verbosity"] as? String, "low")
+    }
+
     @MainActor
     func testGivenSelectedTextWhenServiceRunsThenItShowsProgressAndReplacesTheSelection() throws {
         UserDefaults.standard.removeObject(forKey: "lastServiceStatus")
@@ -70,6 +98,42 @@ final class GrammarMeServiceJourneyTests: XCTestCase {
 
         XCTAssertEqual(result, "Clear writing without extra punctuation.")
     }
+}
+
+private extension URLRequest {
+    func bodyData() throws -> Data {
+        if let httpBody { return httpBody }
+        let stream = try XCTUnwrap(httpBodyStream)
+        stream.open()
+        defer { stream.close() }
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 4_096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            if count < 0 { throw try XCTUnwrap(stream.streamError) }
+            if count == 0 { break }
+            data.append(buffer, count: count)
+        }
+        return data
+    }
+}
+
+private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
+    nonisolated(unsafe) static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))?
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        do {
+            let (response, data) = try XCTUnwrap(Self.handler)(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+    override func stopLoading() {}
 }
 
 private struct StubFormatter: TextFormatting {
