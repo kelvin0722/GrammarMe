@@ -1,37 +1,60 @@
-//
-//  GrammarMeTests.swift
-//  GrammarMeTests
-//
-//  Created by Kelvin Ngacha on 02/09/2026.
-//
-
 import XCTest
+@testable import GrammarMe
 
-final class GrammarMeTests: XCTestCase {
+final class GrammarMeServiceJourneyTests: XCTestCase {
+    func testGivenGrammarMeIsInstalledThenFormatServiceIsAdvertised() throws {
+        let services = try XCTUnwrap(Bundle.main.object(forInfoDictionaryKey: "NSServices") as? [[String: Any]])
+        let menuItem = services.first?["NSMenuItem"] as? [String: String]
 
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+        XCTAssertEqual(menuItem?["default"], "Format with GrammarMe")
+        XCTAssertEqual(services.first?["NSMessage"] as? String, "formatText")
+        XCTAssertEqual(services.first?["NSTimeout"] as? String, "60000")
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    func testGivenSelectedTextAndSavedKeyWhenFormattingThenCorrectedTextIsReturned() async throws {
+        let formatter = StubFormatter(result: .success("I have gone home."))
+        let subject = FormatSelectedText(formatter: formatter, apiKey: { "test-key" })
+
+        let result = try await subject.run("I has went home.")
+
+        XCTAssertEqual(result, "I have gone home.")
     }
 
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
-        // XCTest Documentation
-        // https://developer.apple.com/documentation/xctest
-    }
+    func testGivenNoSelectedTextWhenFormattingThenActionableErrorIsReturned() async {
+        let subject = FormatSelectedText(formatter: StubFormatter(result: .success("unused")), apiKey: { "test-key" })
 
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        measure {
-            // Put the code you want to measure the time of here.
+        await XCTAssertThrowsErrorAsync(try await subject.run("   ")) { error in
+            XCTAssertEqual(error as? FormattingJourneyError, .noSelectedText)
         }
     }
 
+    func testGivenNoSavedKeyWhenFormattingThenSettingsErrorIsReturned() async {
+        let subject = FormatSelectedText(formatter: StubFormatter(result: .success("unused")), apiKey: { "" })
+
+        await XCTAssertThrowsErrorAsync(try await subject.run("Please format me.")) { error in
+            XCTAssertEqual(error as? FormattingJourneyError, .missingAPIKey)
+        }
+    }
+
+    func testGivenFormatterAddsEmDashesWhenOriginalHasNoneThenTheyAreRemoved() async throws {
+        let formatter = StubFormatter(result: .success("Clear writing — without extra punctuation."))
+        let subject = FormatSelectedText(formatter: formatter, apiKey: { "test-key" })
+
+        let result = try await subject.run("Clear writing without extra punctuation.")
+
+        XCTAssertEqual(result, "Clear writing without extra punctuation.")
+    }
+}
+
+private struct StubFormatter: TextFormatting {
+    let result: Result<String, Error>
+    func format(_ text: String, apiKey: String) async throws -> String { try result.get() }
+}
+
+private func XCTAssertThrowsErrorAsync<T>(
+    _ expression: @autoclosure () async throws -> T,
+    _ errorHandler: (Error) -> Void
+) async {
+    do { _ = try await expression(); XCTFail("Expected an error") }
+    catch { errorHandler(error) }
 }
