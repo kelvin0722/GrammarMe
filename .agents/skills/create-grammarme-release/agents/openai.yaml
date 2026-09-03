@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create GrammarMe Release"
+  short_description: "Validate and publish a signed GrammarMe release"
+  default_prompt: "Use $create-grammarme-release to prepare and publish a GrammarMe release."
