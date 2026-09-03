@@ -37,7 +37,7 @@ nonisolated struct OpenAITextFormatter: TextFormatting {
             "model": "gpt-5.6-luna",
             "store": false,
             "reasoning": ["effort": "none"],
-            "instructions": "Correct grammar, spelling, punctuation, and clarity while preserving meaning, voice, and paragraph breaks. Do not introduce dashes. Return only the revised text.",
+            "instructions": grammarMeFormattingInstructions,
             "input": text,
             "text": [
                 "verbosity": "low",

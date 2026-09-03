@@ -6,9 +6,10 @@ final class GrammarMeServiceProvider: NSObject {
     private let progressPanel = FormattingProgressPanel()
 
     override init() {
+        let apiKeyStore = KeychainAPIKeyStore()
         useCase = FormatSelectedText(
             formatter: OpenAITextFormatter(),
-            apiKey: { UserDefaults.standard.string(forKey: "openAIAPIKey") ?? "" }
+            apiKey: { try apiKeyStore.load() ?? "" }
         )
         super.init()
     }
@@ -65,7 +66,7 @@ final class GrammarMeServiceProvider: NSObject {
     }
 
     private func publishStatus(_ message: String) {
-        UserDefaults.standard.set(message, forKey: "lastServiceStatus")
+        UserDefaults.standard.set(message, forKey: AppSettings.lastServiceStatus)
     }
 
     private func notify(title: String, body: String) {
