@@ -3,6 +3,15 @@ import XCTest
 @testable import GrammarMe
 
 final class GrammarMeServiceJourneyTests: XCTestCase {
+    func testGivenFormattingInstructionsThenTheyExplicitlyCoverSpellingAndGrammar() {
+        XCTAssertTrue(grammarMeFormattingInstructions.contains("Correct every spelling error"))
+        XCTAssertTrue(grammarMeFormattingInstructions.contains("Correct every grammatical error"))
+        XCTAssertTrue(grammarMeFormattingInstructions.contains("I recieve teh message."))
+        XCTAssertTrue(grammarMeFormattingInstructions.contains("I receive the message."))
+        XCTAssertTrue(grammarMeFormattingInstructions.contains("She don't likes it."))
+        XCTAssertTrue(grammarMeFormattingInstructions.contains("She doesn't like it."))
+    }
+
     func testGivenTextToFormatWhenOpenAIRequestIsSentThenItUsesLatencyOptimizedSettings() async throws {
         let capturedBody = ThreadSafeValue<[String: Any]>()
         URLProtocolStub.handler = { request in
@@ -29,6 +38,7 @@ final class GrammarMeServiceJourneyTests: XCTestCase {
         XCTAssertEqual(body["model"] as? String, "gpt-5.6-luna")
         XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
         XCTAssertEqual((body["text"] as? [String: Any])?["verbosity"] as? String, "low")
+        XCTAssertEqual(body["instructions"] as? String, grammarMeFormattingInstructions)
     }
 
     @MainActor
