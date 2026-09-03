@@ -106,4 +106,4 @@ Streaming is not used for in-place replacement: the host app's selection can onl
 
 ## Privacy and security
 
-Text is sent to OpenAI only after the user invokes the Service. The MVP stores the API key in `UserDefaults` for speed; moving it to Keychain is required before a production release.
+Text is sent to OpenAI only after the user invokes the Service. The API key is stored in the macOS Keychain. Existing keys from earlier versions are migrated from `UserDefaults` and the plaintext value is removed.

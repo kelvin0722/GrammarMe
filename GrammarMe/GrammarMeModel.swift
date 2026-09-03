@@ -28,19 +28,26 @@ final class GrammarMeModel {
     }
 
     private(set) var phase: Phase = .idle
+    private(set) var hasAPIKey: Bool
     private let useCase: FormatSelectedText
     private let clipboard: any ClipboardManaging
+    private let apiKeyStore: any APIKeyStoring
 
     init() {
+        let apiKeyStore = KeychainAPIKeyStore()
+        self.apiKeyStore = apiKeyStore
+        self.hasAPIKey = ((try? apiKeyStore.load()) ?? nil)?.isEmpty == false
         self.useCase = FormatSelectedText(
             formatter: OpenAITextFormatter(),
-            apiKey: { UserDefaults.standard.string(forKey: AppSettings.apiKey) ?? "" }
+            apiKey: { (try? apiKeyStore.load()) ?? "" }
         )
         self.clipboard = SystemClipboard()
     }
 
-    init(useCase: FormatSelectedText, clipboard: any ClipboardManaging) {
-        self.useCase = useCase
+    init(apiKeyStore: any APIKeyStoring, formatter: any TextFormatting, clipboard: any ClipboardManaging) {
+        self.apiKeyStore = apiKeyStore
+        self.hasAPIKey = ((try? apiKeyStore.load()) ?? nil)?.isEmpty == false
+        self.useCase = FormatSelectedText(formatter: formatter, apiKey: { (try? apiKeyStore.load()) ?? "" })
         self.clipboard = clipboard
     }
 
@@ -54,7 +61,22 @@ final class GrammarMeModel {
         }
     }
 
-    func showAPIKeySaved() { phase = .success("API key saved.") }
+    func savedAPIKey() -> String { (try? apiKeyStore.load()) ?? "" }
+
+    @discardableResult
+    func saveAPIKey(_ key: String) -> Bool {
+        let trimmedKey = key.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedKey.isEmpty else { return false }
+        do {
+            try apiKeyStore.save(trimmedKey)
+            hasAPIKey = true
+            phase = .success("API key saved.")
+            return true
+        } catch {
+            phase = .failure(error.localizedDescription)
+            return false
+        }
+    }
 
     func formatClipboard() async {
         guard let text = clipboard.readText() else {
