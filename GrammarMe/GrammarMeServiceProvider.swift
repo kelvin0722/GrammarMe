@@ -8,7 +8,7 @@ final class GrammarMeServiceProvider: NSObject {
     override init() {
         useCase = FormatSelectedText(
             formatter: OpenAITextFormatter(),
-            apiKey: { UserDefaults.standard.string(forKey: "openAIAPIKey") ?? "" }
+            apiKey: { UserDefaults.standard.string(forKey: AppSettings.apiKey) ?? "" }
         )
         super.init()
     }
@@ -65,7 +65,7 @@ final class GrammarMeServiceProvider: NSObject {
     }
 
     private func publishStatus(_ message: String) {
-        UserDefaults.standard.set(message, forKey: "lastServiceStatus")
+        UserDefaults.standard.set(message, forKey: AppSettings.lastServiceStatus)
     }
 
     private func notify(title: String, body: String) {
