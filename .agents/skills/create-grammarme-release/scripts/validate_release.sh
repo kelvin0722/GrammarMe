@@ -27,9 +27,18 @@ if [ -n "$(git status --porcelain)" ]; then
   exit 66
 fi
 
-resolved_version=$(xcodebuild -project GrammarMe.xcodeproj -scheme GrammarMe -configuration Release -showBuildSettings 2>/dev/null | awk '/^[[:space:]]*MARKETING_VERSION = / { print $3; exit }')
-resolved_build=$(xcodebuild -project GrammarMe.xcodeproj -scheme GrammarMe -configuration Release -showBuildSettings 2>/dev/null | awk '/^[[:space:]]*CURRENT_PROJECT_VERSION = / { print $3; exit }')
+build_settings=$(xcodebuild -project GrammarMe.xcodeproj -scheme GrammarMe -configuration Release -showBuildSettings 2>/dev/null) || {
+  echo "xcodebuild -showBuildSettings failed" >&2
+  exit 69
+}
 
+resolved_version=$(printf '%s\n' "$build_settings" | awk '/^[[:space:]]*MARKETING_VERSION = / { print $3; exit }')
+resolved_build=$(printf '%s\n' "$build_settings" | awk '/^[[:space:]]*CURRENT_PROJECT_VERSION = / { print $3; exit }')
+
+if [ -z "$resolved_version" ] || [ -z "$resolved_build" ]; then
+  echo "failed to resolve MARKETING_VERSION/CURRENT_PROJECT_VERSION from build settings" >&2
+  exit 69
+fi
 if [ "$resolved_version" != "$release_version" ]; then
   echo "MARKETING_VERSION is $resolved_version; expected $release_version" >&2
   exit 67
