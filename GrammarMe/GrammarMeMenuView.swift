@@ -46,7 +46,11 @@ struct GrammarMeMenuView: View {
     private var footer: some View {
         HStack {
             if page == .home {
-                Button { draftKey = model.savedAPIKey(); page = .settings } label: {
+                Button {
+                    guard let key = model.apiKeyForEditing() else { return }
+                    draftKey = key
+                    page = .settings
+                } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
             }

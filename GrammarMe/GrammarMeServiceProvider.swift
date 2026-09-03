@@ -9,7 +9,7 @@ final class GrammarMeServiceProvider: NSObject {
         let apiKeyStore = KeychainAPIKeyStore()
         useCase = FormatSelectedText(
             formatter: OpenAITextFormatter(),
-            apiKey: { (try? apiKeyStore.load()) ?? "" }
+            apiKey: { try apiKeyStore.load() ?? "" }
         )
         super.init()
     }

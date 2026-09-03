@@ -36,18 +36,28 @@ final class GrammarMeModel {
     init() {
         let apiKeyStore = KeychainAPIKeyStore()
         self.apiKeyStore = apiKeyStore
-        self.hasAPIKey = ((try? apiKeyStore.load()) ?? nil)?.isEmpty == false
+        do {
+            self.hasAPIKey = try apiKeyStore.load()?.isEmpty == false
+        } catch {
+            self.hasAPIKey = false
+            self.phase = .failure(error.localizedDescription)
+        }
         self.useCase = FormatSelectedText(
             formatter: OpenAITextFormatter(),
-            apiKey: { (try? apiKeyStore.load()) ?? "" }
+            apiKey: { try apiKeyStore.load() ?? "" }
         )
         self.clipboard = SystemClipboard()
     }
 
     init(apiKeyStore: any APIKeyStoring, formatter: any TextFormatting, clipboard: any ClipboardManaging) {
         self.apiKeyStore = apiKeyStore
-        self.hasAPIKey = ((try? apiKeyStore.load()) ?? nil)?.isEmpty == false
-        self.useCase = FormatSelectedText(formatter: formatter, apiKey: { (try? apiKeyStore.load()) ?? "" })
+        do {
+            self.hasAPIKey = try apiKeyStore.load()?.isEmpty == false
+        } catch {
+            self.hasAPIKey = false
+            self.phase = .failure(error.localizedDescription)
+        }
+        self.useCase = FormatSelectedText(formatter: formatter, apiKey: { try apiKeyStore.load() ?? "" })
         self.clipboard = clipboard
     }
 
@@ -61,7 +71,14 @@ final class GrammarMeModel {
         }
     }
 
-    func savedAPIKey() -> String { (try? apiKeyStore.load()) ?? "" }
+    func apiKeyForEditing() -> String? {
+        do {
+            return try apiKeyStore.load() ?? ""
+        } catch {
+            phase = .failure(error.localizedDescription)
+            return nil
+        }
+    }
 
     @discardableResult
     func saveAPIKey(_ key: String) -> Bool {

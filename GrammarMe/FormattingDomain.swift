@@ -20,13 +20,13 @@ nonisolated enum FormattingJourneyError: LocalizedError, Equatable {
 
 nonisolated struct FormatSelectedText: Sendable {
     let formatter: any TextFormatting
-    let apiKey: @Sendable () -> String
+    let apiKey: @Sendable () throws -> String
 
     nonisolated func run(_ selectedText: String) async throws -> String {
         guard !selectedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw FormattingJourneyError.noSelectedText
         }
-        let key = apiKey().trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = try apiKey().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !key.isEmpty else { throw FormattingJourneyError.missingAPIKey }
         let formatted = try await formatter.format(selectedText, apiKey: key)
         guard !formatted.isEmpty else { throw FormattingJourneyError.emptyResponse }

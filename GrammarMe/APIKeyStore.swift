@@ -9,11 +9,14 @@ nonisolated protocol APIKeyStoring: Sendable {
 
 nonisolated enum APIKeyStoreError: LocalizedError {
     case keychain(OSStatus)
+    case invalidData
 
     var errorDescription: String? {
         switch self {
         case .keychain(let status):
             "GrammarMe could not access the API key in Keychain (\(status))."
+        case .invalidData:
+            "GrammarMe could not read the API key stored in Keychain. Save the key again."
         }
     }
 }
@@ -39,8 +42,11 @@ nonisolated struct KeychainAPIKeyStore: APIKeyStoring {
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: CFTypeRef?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecSuccess, let data = result as? Data {
-            return String(data: data, encoding: .utf8)
+        if status == errSecSuccess {
+            guard let data = result as? Data, let key = String(data: data, encoding: .utf8) else {
+                throw APIKeyStoreError.invalidData
+            }
+            return key
         }
         guard status == errSecItemNotFound else { throw APIKeyStoreError.keychain(status) }
         return try migrateLegacyKeyIfNeeded()

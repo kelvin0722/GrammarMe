@@ -3,11 +3,31 @@ import XCTest
 
 @MainActor
 final class GrammarMeModelTests: XCTestCase {
+    private struct CredentialError: LocalizedError {
+        var errorDescription: String? { "Keychain is unavailable." }
+    }
+
+    func testGivenCredentialStoreFailureWhenModelLoadsThenFailureIsPresented() {
+        let store = APIKeyStoreSpy()
+        store.loadError = CredentialError()
+        let subject = GrammarMeModel(apiKeyStore: store, formatter: StubFormatter(result: .success("unused")), clipboard: ClipboardSpy(text: nil))
+        XCTAssertFalse(subject.hasAPIKey)
+        XCTAssertEqual(subject.phase, .failure("Keychain is unavailable."))
+    }
+
+    func testGivenCredentialStoreFailureWhenFormattingThenFailureIsPreserved() async {
+        let store = APIKeyStoreSpy(key: "key")
+        let subject = GrammarMeModel(apiKeyStore: store, formatter: StubFormatter(result: .success("unused")), clipboard: ClipboardSpy(text: "Text"))
+        store.loadError = CredentialError()
+        await subject.formatClipboard()
+        XCTAssertEqual(subject.phase, .failure("Keychain is unavailable."))
+    }
+
     func testGivenSavedCredentialWhenModelLoadsThenAPIKeyIsConfigured() {
         let store = APIKeyStoreSpy(key: "saved-key")
         let subject = GrammarMeModel(apiKeyStore: store, formatter: StubFormatter(result: .success("unused")), clipboard: ClipboardSpy(text: nil))
         XCTAssertTrue(subject.hasAPIKey)
-        XCTAssertEqual(subject.savedAPIKey(), "saved-key")
+        XCTAssertEqual(subject.apiKeyForEditing(), "saved-key")
     }
 
     func testGivenWhitespacePaddedCredentialWhenSavingThenTrimmedKeyIsStored() {

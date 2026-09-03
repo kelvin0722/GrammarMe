@@ -2,6 +2,18 @@ import XCTest
 @testable import GrammarMe
 
 final class FormatSelectedTextTests: XCTestCase {
+    private enum CredentialError: Error { case unavailable }
+
+    func testGivenCredentialAccessFailureWhenFormattingThenUnderlyingErrorIsReturned() async {
+        let subject = FormatSelectedText(
+            formatter: StubFormatter(result: .success("unused")),
+            apiKey: { throw CredentialError.unavailable }
+        )
+        await XCTAssertThrowsErrorAsync(try await subject.run("Text")) { error in
+            XCTAssertTrue(error is CredentialError)
+        }
+    }
+
     func testGivenSelectedTextAndSavedKeyWhenFormattingThenCorrectedTextIsReturned() async throws {
         let subject = FormatSelectedText(formatter: StubFormatter(result: .success("I have gone home.")), apiKey: { "test-key" })
         let result = try await subject.run("I has went home.")

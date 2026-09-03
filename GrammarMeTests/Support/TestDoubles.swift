@@ -31,9 +31,13 @@ final class ThreadSafeValue<Value>: @unchecked Sendable {
 final class APIKeyStoreSpy: APIKeyStoring, @unchecked Sendable {
     private let lock = NSLock()
     private var storedKey: String?
+    var loadError: Error?
 
     init(key: String? = nil) { storedKey = key }
-    func load() throws -> String? { lock.withLock { storedKey } }
+    func load() throws -> String? {
+        if let loadError { throw loadError }
+        return lock.withLock { storedKey }
+    }
     func save(_ key: String) throws { lock.withLock { storedKey = key } }
     func delete() throws { lock.withLock { storedKey = nil } }
 }
