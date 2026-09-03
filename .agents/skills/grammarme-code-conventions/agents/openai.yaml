@@ -1,0 +1,4 @@
+interface:
+  display_name: "GrammarMe Code Conventions"
+  short_description: "Apply project-specific Swift and test conventions"
+  default_prompt: "Use $grammarme-code-conventions when changing or reviewing GrammarMe code."
