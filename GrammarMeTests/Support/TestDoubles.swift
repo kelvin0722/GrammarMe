@@ -28,6 +28,20 @@ final class ThreadSafeValue<Value>: @unchecked Sendable {
     func set(_ value: Value) { lock.withLock { storedValue = value } }
 }
 
+final class APIKeyStoreSpy: APIKeyStoring, @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedKey: String?
+    var loadError: Error?
+
+    init(key: String? = nil) { storedKey = key }
+    func load() throws -> String? {
+        if let loadError { throw loadError }
+        return lock.withLock { storedKey }
+    }
+    func save(_ key: String) throws { lock.withLock { storedKey = key } }
+    func delete() throws { lock.withLock { storedKey = nil } }
+}
+
 func XCTAssertThrowsErrorAsync<T>(
     _ expression: @autoclosure () async throws -> T,
     _ errorHandler: (Error) -> Void

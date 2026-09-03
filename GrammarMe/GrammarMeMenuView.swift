@@ -4,7 +4,6 @@ import SwiftUI
 struct GrammarMeMenuView: View {
     private enum Page { case home, settings }
 
-    @AppStorage(AppSettings.apiKey) private var apiKey = ""
     @AppStorage(AppSettings.lastServiceStatus) private var lastServiceStatus = ""
     @State private var model = GrammarMeModel()
     @State private var page: Page = .home
@@ -16,7 +15,7 @@ struct GrammarMeMenuView: View {
             Divider()
             if page == .home {
                 GrammarMeHomeView(
-                    hasAPIKey: !apiKey.isEmpty,
+                    hasAPIKey: model.hasAPIKey,
                     isFormatting: model.isFormatting,
                     statusMessage: model.statusMessage ?? nonEmpty(lastServiceStatus),
                     formatClipboard: { Task { await model.formatClipboard() } }
@@ -47,7 +46,11 @@ struct GrammarMeMenuView: View {
     private var footer: some View {
         HStack {
             if page == .home {
-                Button { draftKey = apiKey; page = .settings } label: {
+                Button {
+                    guard let key = model.apiKeyForEditing() else { return }
+                    draftKey = key
+                    page = .settings
+                } label: {
                     Label("Settings", systemImage: "gearshape")
                 }
             }
@@ -57,9 +60,7 @@ struct GrammarMeMenuView: View {
     }
 
     private func saveAPIKey() {
-        apiKey = draftKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        page = .home
-        model.showAPIKeySaved()
+        if model.saveAPIKey(draftKey) { page = .home }
     }
 
     private func nonEmpty(_ value: String) -> String? { value.isEmpty ? nil : value }

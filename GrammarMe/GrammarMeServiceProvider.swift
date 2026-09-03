@@ -6,9 +6,10 @@ final class GrammarMeServiceProvider: NSObject {
     private let progressPanel = FormattingProgressPanel()
 
     override init() {
+        let apiKeyStore = KeychainAPIKeyStore()
         useCase = FormatSelectedText(
             formatter: OpenAITextFormatter(),
-            apiKey: { UserDefaults.standard.string(forKey: AppSettings.apiKey) ?? "" }
+            apiKey: { try apiKeyStore.load() ?? "" }
         )
         super.init()
     }
